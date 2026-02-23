@@ -8,21 +8,21 @@ branding:
   color: "orange"
 
 inputs:
-  token:
-    description: "GitHub token."
+  path:
+    description: Path to scan
     required: true
-  file_extensions:
-    description: "Regex of extensions."
+    type: string
+    default: "api"
+  project_key:
+    description: Project key
     required: false
-    default: "ts|js|jsx|tsx|java|py|go|cs|php|sh|json|yaml|yml"
-  target_path:
-    description: "Directory paths or files to be investigated."
-    required: true
-    default: "."
-  exclude_patterns:
-    description: "Regex of ignored."
+    type: string
+    default: "nome-do-projeto"
+  project_name:
+    description: Project name
     required: false
-    default: "node_modules|dist|build|.git"
+    type: string
+    default: "Nome do Projeto"
 
 outputs:
   json:
@@ -41,3 +41,362 @@ outputs:
 runs:
   using: "composite"
   steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set scan path
+        id: config
+        run: |
+          scan_path="${{ inputs.path }}"
+          if [ -z "$scan_path" ]; then
+            scan_path="api"
+          fi
+          echo "scan_path=$scan_path" >> "$GITHUB_OUTPUT"
+          echo "Scan path configured: $scan_path"
+
+      - name: Detect SonarQube Host
+        id: sonar-host
+        run: |
+          echo "Detecting SonarQube host URL..."
+          sonar_url=""
+          for url in "http://localhost:9000" "http://sonarqube:9000" "http://127.0.0.1:9000" "http://host.docker.internal:9000"; do
+            echo "Trying $url..."
+            response=$(curl -sf --max-time 5 "$url/api/system/status" 2>/dev/null || echo "")
+            if [ -n "$response" ]; then
+              sonar_url="$url"
+              echo "Found SonarQube at $url"
+              break
+            fi
+          done
+          if [ -z "$sonar_url" ]; then
+            echo "SonarQube not immediately available, defaulting to localhost"
+            sonar_url="http://localhost:9000"
+          fi
+          echo "SONAR_HOST_URL=$sonar_url" >> "$GITHUB_ENV"
+          echo "sonar_url=$sonar_url" >> "$GITHUB_OUTPUT"
+          echo "Using SonarQube URL: $sonar_url"
+
+      - name: Wait for SonarQube to be ready
+        run: |
+          echo "Waiting for SonarQube server at $SONAR_HOST_URL to be fully operational..."
+          max_attempts=60
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Checking SonarQube status..."
+            for url in "$SONAR_HOST_URL" "http://localhost:9000" "http://sonarqube:9000" "http://host.docker.internal:9000"; do
+              response=$(curl -sf --max-time 5 "$url/api/system/status" 2>/dev/null || echo "")
+              if [ -n "$response" ]; then
+                status=$(echo "$response" | grep -oE '"status"\s*:\s*"[^"]+"' | grep -oE '"[A-Z]+"$' | tr -d '"' || echo "UNKNOWN")
+                echo "Response from $url - status: $status"
+                if [ "$status" = "UP" ]; then
+                  echo "SonarQube is UP and ready at $url!"
+                  echo "SONAR_HOST_URL=$url" >> "$GITHUB_ENV"
+                  exit 0
+                fi
+                break
+              fi
+            done
+            if [ $attempt -eq $max_attempts ]; then
+              echo "ERROR: SonarQube failed to start after $max_attempts attempts"
+              exit 1
+            fi
+            echo "Waiting 10 seconds before next check..."
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+
+      - name: Configure SonarQube Project
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          project_key="${{ inputs.project_key }}"
+          project_name="${{ inputs.project_name }}"
+          if [ -z "$project_key" ]; then
+            project_key="project"
+          fi
+          if [ -z "$project_name" ]; then
+            project_name="Project"
+          fi
+          echo "Configuring project: $project_key"
+          mkdir -p "$scan_path"
+          export PROJECT_KEY="$project_key"
+          export PROJECT_NAME="$project_name"
+          envsubst < .github/templates/sonar-project.properties.template > "$scan_path/sonar-project.properties"
+          echo "Created sonar-project.properties:"
+          cat "$scan_path/sonar-project.properties"
+
+      - name: Download and Setup Sonar Scanner
+        run: |
+          echo "Downloading SonarScanner CLI v$SONAR_SCANNER_VERSION..."
+          curl -fsSL -o /tmp/sonar-scanner.zip "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip"
+          unzip -q /tmp/sonar-scanner.zip -d /tmp
+          scanner_dir="/tmp/sonar-scanner-${SONAR_SCANNER_VERSION}-linux-x64"
+          chmod +x "$scanner_dir/bin/sonar-scanner"
+          echo "SONAR_SCANNER_HOME=$scanner_dir" >> "$GITHUB_ENV"
+          echo "PATH=$scanner_dir/bin:$PATH" >> "$GITHUB_ENV"
+          echo "SonarScanner installed at: $scanner_dir"
+          ls -la "$scanner_dir/bin/"
+
+      - name: Verify Source Directory
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          echo "Checking source directory: $scan_path"
+          if [ ! -d "$scan_path" ]; then
+            echo "ERROR: Directory $scan_path does not exist"
+            exit 1
+          fi
+          if [ ! -d "$scan_path/src" ]; then
+            echo "WARNING: $scan_path/src does not exist, creating placeholder"
+            mkdir -p "$scan_path/src"
+            echo "// placeholder" > "$scan_path/src/placeholder.ts"
+          fi
+          echo "Directory contents:"
+          ls -la "$scan_path"
+          echo "Source files count:"
+          find "$scan_path/src" -type f -name "*.ts" 2>/dev/null | wc -l || echo "0"
+            
+      - name: Run SonarQube Scan
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          project_key="${{ inputs.project_key }}"
+          cd "$scan_path"
+          
+          if [ -z "$project_key" ]; then
+            project_key="project"
+          fi
+          echo "Starting SonarQube scan for project: $project_key"
+          echo "Scan path: $scan_path"
+          echo "SonarQube URL: $SONAR_HOST_URL"
+          
+          # 1. Instalar dependências necessárias para o lint
+          npm install --save-dev eslint@8.57.1 @typescript-eslint/parser@7.18.0 @typescript-eslint/eslint-plugin@7.18.0 eslint-plugin-sonarjs@0.25.1 --no-package-lock --force
+          
+          # 2. Copiar o template do eslint.config.cjs
+          cp "$GITHUB_WORKSPACE/.github/templates/eslint.config.cjs.template" ./eslint.config.cjs
+          
+          # 3. Executar o Scanner
+          sonar-scanner \
+            -Dsonar.projectKey="${{ inputs.project_key }}" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.login=admin \
+            -Dsonar.password=admin \
+            -Dsonar.projectBaseDir="$PWD" \
+            -Dsonar.qualitygate.wait=false
+          echo "SonarQube scan completed"
+
+      - name: Wait for Analysis Processing
+        run: |
+          echo "Waiting for SonarQube to process analysis results..."
+          sleep 30
+          project_key="${{ inputs.project_key }}"
+          if [ -z "$project_key" ]; then
+            project_key="project"
+          fi
+          max_attempts=20
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Checking analysis status..."
+            ce_status=$(curl -sf -u admin:admin "$SONAR_HOST_URL/api/ce/component?component=$project_key" 2>/dev/null || echo "{}")
+            echo "CE Status response: $ce_status"
+            pending=$(echo "$ce_status" | grep -c '"status":"PENDING"' 2>/dev/null || true)
+            in_progress=$(echo "$ce_status" | grep -c '"status":"IN_PROGRESS"' 2>/dev/null || true)
+            pending=${pending:-0}
+            in_progress=${in_progress:-0}
+            if [ "$pending" -eq 0 ] && [ "$in_progress" -eq 0 ]; then
+              echo "Analysis processing completed"
+              break
+            fi
+            echo "Analysis still processing, waiting 10 seconds..."
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+
+      - name: Create Report Directory
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          report_dir="${scan_path}/.sonarq"
+          echo "Creating report directory: $report_dir"
+          mkdir -p "$report_dir"
+          echo "Report directory created successfully"
+          ls -la "$scan_path"
+
+      - name: Extract SonarQube Report
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          report_dir="${scan_path}/.sonarq"
+          project_key="${{ inputs.project_key }}"
+          if [ -z "$project_key" ]; then
+            project_key="project"
+          fi
+          echo "Extracting reports to: $report_dir"
+          echo "Using SonarQube URL: $SONAR_HOST_URL"
+          cd "$report_dir"
+          echo "Fetching quality gate status..."
+          curl -sf -u admin:admin "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$project_key" -o quality-gate.json 2>/dev/null || echo '{"projectStatus":{"status":"NONE"}}' > quality-gate.json
+          echo "Fetching project metrics..."
+          curl -sf -u admin:admin "$SONAR_HOST_URL/api/measures/component?component=$project_key&metricKeys=bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,ncloc,security_hotspots,reliability_rating,security_rating,sqale_rating" -o metrics.json 2>/dev/null || echo '{"component":{"measures":[]}}' > metrics.json
+          echo "Fetching issues..."
+          curl -sf -u admin:admin "$SONAR_HOST_URL/api/issues/search?componentKeys=$project_key&ps=500&statuses=OPEN,CONFIRMED,REOPENED" -o issues.json 2>/dev/null || echo '{"issues":[],"total":0}' > issues.json
+          echo "Fetching security hotspots..."
+          curl -sf -u admin:admin "$SONAR_HOST_URL/api/hotspots/search?projectKey=$project_key&ps=500" -o hotspots.json 2>/dev/null || echo '{"hotspots":[],"paging":{"total":0}}' > hotspots.json
+          echo "Fetching project analysis history..."
+          curl -sf -u admin:admin "$SONAR_HOST_URL/api/project_analyses/search?project=$project_key" -o analyses.json 2>/dev/null || echo '{"analyses":[]}' > analyses.json
+          echo "Files extracted:"
+          ls -la
+          echo "Quality Gate content:"
+          cat quality-gate.json
+          echo ""
+          echo "Metrics content:"
+          cat metrics.json
+
+      - name: Generate Detailed Markdown Report
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          report_dir="${scan_path}/.sonarq"
+          project_key="${{ inputs.project_key }}"
+          project_name="${{ inputs.project_name }}"
+          if [ -z "$project_key" ]; then
+            project_key="project"
+          fi
+          if [ -z "$project_name" ]; then
+            project_name="Project"
+          fi
+          export PROJECT_KEY="$project_key"
+          export PROJECT_NAME="$project_name"
+          export TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export RUN_ID="${{ github.run_id }}"
+          export RUN_NUMBER="${{ github.run_number }}"
+          export BRANCH="${{ github.ref_name }}"
+          export SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          export SCAN_PATH="$scan_path"
+          export QG_STATUS="NONE"
+          if [ -f "$report_dir/quality-gate.json" ]; then
+            export QG_STATUS=$(grep -oP '"status"\s*:\s*"\K[^"]+' "$report_dir/quality-gate.json" 2>/dev/null | head -1 || echo "NONE")
+          fi
+          case "$QG_STATUS" in
+            OK) export QG_ICON="PASSED" ;;
+            ERROR) export QG_ICON="FAILED" ;;
+            WARN) export QG_ICON="WARNING" ;;
+            NONE) export QG_ICON="NOT_COMPUTED" ;;
+            *) export QG_ICON="UNKNOWN" ;;
+          esac
+          extract_metric() {
+            metric_key="$1"
+            default_val="$2"
+            if [ -f "$report_dir/metrics.json" ]; then
+              val=$(grep -oP "\"metric\"\\s*:\\s*\"$metric_key\"[^}]*\"value\"\\s*:\\s*\"\\K[^\"]+" "$report_dir/metrics.json" 2>/dev/null | head -1)
+              if [ -n "$val" ]; then
+                echo "$val"
+                return
+              fi
+            fi
+            echo "$default_val"
+          }
+          export BUGS=$(extract_metric "bugs" "0")
+          export VULNERABILITIES=$(extract_metric "vulnerabilities" "0")
+          export CODE_SMELLS=$(extract_metric "code_smells" "0")
+          export COVERAGE=$(extract_metric "coverage" "0.0")
+          export DUPLICATED=$(extract_metric "duplicated_lines_density" "0.0")
+          export NCLOC=$(extract_metric "ncloc" "0")
+          export HOTSPOTS=$(extract_metric "security_hotspots" "0")
+          export TOTAL_ISSUES="0"
+          if [ -f "$report_dir/issues.json" ]; then
+            export TOTAL_ISSUES=$(grep -oP '"total"\s*:\s*\K[0-9]+' "$report_dir/issues.json" 2>/dev/null | head -1 || echo "0")
+          fi
+          export BLOCKER_ISSUES="0"
+          export CRITICAL_ISSUES="0"
+          export MAJOR_ISSUES="0"
+          export MINOR_ISSUES="0"
+          if [ -f "$report_dir/issues.json" ]; then
+            BLOCKER_ISSUES=$(grep -c '"severity":"BLOCKER"' "$report_dir/issues.json" 2>/dev/null || true)
+            CRITICAL_ISSUES=$(grep -c '"severity":"CRITICAL"' "$report_dir/issues.json" 2>/dev/null || true)
+            MAJOR_ISSUES=$(grep -c '"severity":"MAJOR"' "$report_dir/issues.json" 2>/dev/null || true)
+            MINOR_ISSUES=$(grep -c '"severity":"MINOR"' "$report_dir/issues.json" 2>/dev/null || true)
+            [ -z "$BLOCKER_ISSUES" ] && BLOCKER_ISSUES="0"
+            [ -z "$CRITICAL_ISSUES" ] && CRITICAL_ISSUES="0"
+            [ -z "$MAJOR_ISSUES" ] && MAJOR_ISSUES="0"
+            [ -z "$MINOR_ISSUES" ] && MINOR_ISSUES="0"
+            export BLOCKER_ISSUES CRITICAL_ISSUES MAJOR_ISSUES MINOR_ISSUES
+          fi
+          envsubst < .github/templates/sonarqube-report.md.template > "$report_dir/REPORT.md"
+          echo "Generated REPORT.md:"
+          cat "$report_dir/REPORT.md"
+
+      - name: Verify Report Files
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          report_dir="${scan_path}/.sonarq"
+          echo "Verifying report files in: $report_dir"
+          if [ ! -d "$report_dir" ]; then
+            echo "ERROR: Report directory does not exist"
+            exit 1
+          fi
+          echo "Report directory contents:"
+          ls -la "$report_dir"
+          if [ ! -f "$report_dir/REPORT.md" ]; then
+            echo "ERROR: REPORT.md was not generated"
+            exit 1
+          fi
+          echo "REPORT.md exists and contains:"
+          wc -l "$report_dir/REPORT.md"
+          echo "All report files verified successfully"
+
+      - name: Commit Report via Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scan_path="${{ steps.config.outputs.scan_path }}"
+          report_dir="${scan_path}/.sonarq"
+          base_branch="${{ github.ref_name }}"
+          timestamp=$(date -u +"%Y%m%d%H%M%S")
+          report_branch="sonarq/report-${base_branch}-${timestamp}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$report_dir"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            echo "Creating report branch: $report_branch"
+            git checkout -b "$report_branch"
+            git commit -m "ci(sonarqube): Add quality report for $scan_path [$timestamp]"
+            git push -u origin "$report_branch"
+            echo "Creating Pull Request..."
+            pr_body="## SonarQube Quality Report"
+            pr_body="${pr_body}\n\nThis PR contains the SonarQube analysis report for \`$scan_path\`."
+            pr_body="${pr_body}\n\n### Generated Files"
+            pr_body="${pr_body}\n- \`$report_dir/REPORT.md\` - Human-readable summary"
+            pr_body="${pr_body}\n- \`$report_dir/quality-gate.json\` - Quality Gate status"
+            pr_body="${pr_body}\n- \`$report_dir/metrics.json\` - Project metrics"
+            pr_body="${pr_body}\n- \`$report_dir/issues.json\` - Detailed issues"
+            pr_body="${pr_body}\n- \`$report_dir/hotspots.json\` - Security hotspots"
+            pr_body="${pr_body}\n- \`$report_dir/analyses.json\` - Analysis history"
+            pr_body="${pr_body}\n\n### Workflow Run"
+            pr_body="${pr_body}\n- **Run ID:** ${{ github.run_id }}"
+            pr_body="${pr_body}\n- **Run Number:** #${{ github.run_number }}"
+            pr_body="${pr_body}\n- **Branch:** $base_branch"
+            pr_body="${pr_body}\n- **Commit:** ${{ github.sha }}"
+            pr_body="${pr_body}\n\n---"
+            pr_body="${pr_body}\n*Generated automatically by SonarQube Scan Workflow*"
+            pr_url=$(echo -e "$pr_body" | gh pr create \
+              --base "$base_branch" \
+              --head "$report_branch" \
+              --title "ci(sonarqube): Quality report for $scan_path" \
+              --body-file - 2>/dev/null || echo "")
+            if [ -n "$pr_url" ]; then
+              echo "Pull Request created: $pr_url"
+            else
+              echo "Pull Request creation skipped (may already exist or label not available)"
+              echo "Branch $report_branch pushed successfully - manual PR creation may be needed"
+            fi
+          fi
+
+      - name: Upload Report Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarqube-report
+          path: |
+            ${{ steps.config.outputs.scan_path }}/.sonarq/
+          retention-days: 30
+

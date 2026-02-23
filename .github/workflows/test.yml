@@ -1,0 +1,33 @@
+# .github/workflows/sonarq.yml
+name: "🪲 SonarQube Scan"
+
+on:
+  workflow_dispatch:
+    inputs:
+      
+
+permissions:
+  contents: write
+  security-events: write
+  pull-requests: write
+
+env:
+  CI: "true"
+  SONAR_SCANNER_VERSION: "6.2.1.4610"
+  SONAR_HOST_URL: "http://localhost:9000"
+
+jobs:
+  sonarqube-scan:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      sonarqube:
+        image: sonarqube:lts-community
+        ports:
+          - 9000:9000
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+
+    steps:
