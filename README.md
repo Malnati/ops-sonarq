@@ -14,13 +14,13 @@ Fluxo implementado em `action.yml`:
    - `http://127.0.0.1:9000`
    - `http://host.docker.internal:9000`
 4. Aguarda o SonarQube ficar `UP`.
-5. Gera `sonar-project.properties` com `envsubst` a partir de `.github/templates/sonar-project.properties.template`.
+5. Gera `sonar-project.properties` com `envsubst` a partir de `assets/sonar-project.properties.template`.
 6. Baixa SonarScanner CLI e adiciona ao `PATH`.
 7. Garante existencia de `path/src` (cria placeholder quando ausente).
 8. Executa scan SonarQube com login/senha `admin/admin`.
 9. Aguarda processamento da analise.
 10. Extrai dados via API SonarQube para `path/.sonarq`.
-11. Gera `REPORT.md` com `envsubst` usando `.github/templates/sonarqube-report.md.template`.
+11. Gera `REPORT.md` com `envsubst` usando `assets/sonarqube-report.md.template`.
 12. Cria branch, commit e tenta abrir PR com os relatorios.
 13. Publica artifact `sonarqube-report` com `actions/upload-artifact@v4`.
 
@@ -76,11 +76,17 @@ jobs:
           project_name: Meu Projeto
 ```
 
+## Teste local via bash
+
+```bash
+bash assets/run.sh --path api --project-key meu-projeto --project-name "Meu Projeto"
+```
+
 ## Dependencias e premissas reais
 
 - O fluxo usa comandos `npm`, `curl`, `unzip`, `envsubst`, `git` e `gh`.
 - O scanner e as APIs SonarQube estao configurados com `admin/admin`.
-- O workflow espera templates em `.github/templates/`:
+- O workflow espera templates em `assets/`:
   - `eslint.config.cjs.template`
   - `sonar-project.properties.template`
   - `sonarqube-report.md.template`
