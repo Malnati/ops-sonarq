@@ -1,10 +1,8 @@
 # .github/workflows/sonarq.yml
-name: "🪲 SonarQube Scan"
+name: "SonarQube Scan"
 
 on:
   workflow_dispatch:
-    inputs:
-      
 
 permissions:
   contents: write
@@ -31,3 +29,12 @@ jobs:
           SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run SonarQube Action
+        uses: ./
+        with:
+          path: .tests/api
+          project_key: test-project
+          project_name: Test Project

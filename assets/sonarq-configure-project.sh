@@ -25,6 +25,14 @@ echo "PROJECT_NAME=$project_name" >> "$GITHUB_ENV"
 export PROJECT_KEY="$project_key"
 export PROJECT_NAME="$project_name"
 
+sonar_user="${SONAR_USER:-admin}"
+sonar_pass="${SONAR_PASS:-admin}"
+
+echo "Creating project in SonarQube (if not exists)..."
+curl -sf -u "$sonar_user:$sonar_pass" \
+  -X POST "$SONAR_HOST_URL/api/projects/create?name=$(printf '%s' "$project_name" | jq -sRr @uri)&project=$project_key" \
+  2>/dev/null || echo "Project may already exist, continuing..."
+
 envsubst < "$GITHUB_WORKSPACE/assets/sonar-project.properties.template" > "$scan_path/sonar-project.properties"
 echo "Created sonar-project.properties:"
 cat "$scan_path/sonar-project.properties"

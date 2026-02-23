@@ -11,22 +11,24 @@ if [ -z "$scan_path" ]; then
   scan_path="api"
 fi
 
-cd "$scan_path"
+abs_scan_path="$GITHUB_WORKSPACE/$scan_path"
+cd "$abs_scan_path"
 
 if [ -z "$project_key" ]; then
   project_key="project"
 fi
 echo "Starting SonarQube scan for project: $project_key"
-echo "Scan path: $scan_path"
+echo "Scan path: $abs_scan_path"
 echo "SonarQube URL: $SONAR_HOST_URL"
 
-# 1. Instalar dependências necessárias para o lint
-npm install --save-dev eslint@8.57.1 @typescript-eslint/parser@7.18.0 @typescript-eslint/eslint-plugin@7.18.0 eslint-plugin-sonarjs@0.25.1 --no-package-lock --force
+if [ ! -f "package.json" ]; then
+  echo '{"name":"scan-target","version":"1.0.0","private":true}' > package.json
+fi
 
-# 2. Copiar o template do eslint.config.cjs
+npm install --save-dev eslint@8.57.1 @typescript-eslint/parser@7.18.0 @typescript-eslint/eslint-plugin@7.18.0 eslint-plugin-sonarjs@0.25.1 --no-package-lock --force 2>&1 | tail -5
+
 cp "$GITHUB_WORKSPACE/assets/eslint.config.cjs.template" ./eslint.config.cjs
 
-# 3. Executar o Scanner
 sonar-scanner \
   -Dsonar.projectKey="$project_key" \
   -Dsonar.host.url="$SONAR_HOST_URL" \

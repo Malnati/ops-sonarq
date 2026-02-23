@@ -22,24 +22,18 @@ inputs:
     default: "Nome do Projeto"
 
 outputs:
-  json:
-    description: "Generated JSON file path (array)."
-    value: ${{ steps.generate_output.outputs.json }}
   report_path:
-    description: "Generated JSON file path (array)."
+    description: "Path to the generated report directory."
     value: ${{ steps.generate_output.outputs.report_path }}
   status:
-    description: "Scan status."
+    description: "Quality Gate status."
     value: ${{ steps.generate_output.outputs.status }}
-  count:
-    description: "Number of literals found."
-    value: ${{ steps.generate_output.outputs.count }}
 
 runs:
   using: "composite"
   steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -74,7 +68,7 @@ runs:
       - name: Verify Source Directory
         shell: bash
         run: bash assets/sonarq-verify-source.sh
-            
+
       - name: Run SonarQube Scan
         shell: bash
         run: bash assets/sonarq-run-scan.sh
@@ -92,8 +86,19 @@ runs:
         run: bash assets/sonarq-extract-report.sh
 
       - name: Generate Detailed Markdown Report
+        id: generate_output
         shell: bash
-        run: bash assets/sonarq-generate-report.sh
+        run: |
+          bash assets/sonarq-generate-report.sh
+          scan_path="${SCAN_PATH:-api}"
+          report_dir="${scan_path}/.sonarq"
+          echo "report_path=$report_dir" >> "$GITHUB_OUTPUT"
+          if [ -f "$report_dir/quality-gate.json" ]; then
+            qg_status=$(grep -oP '"status"\s*:\s*"\K[^"]+' "$report_dir/quality-gate.json" 2>/dev/null | head -1 || echo "NONE")
+          else
+            qg_status="NONE"
+          fi
+          echo "status=$qg_status" >> "$GITHUB_OUTPUT"
 
       - name: Verify Report Files
         shell: bash
@@ -106,7 +111,7 @@ runs:
         run: bash assets/sonarq-commit-report.sh
 
       - name: Upload Report Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: sonarqube-report
           path: |
