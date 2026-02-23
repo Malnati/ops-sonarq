@@ -1,0 +1,71 @@
+# SonarQube Quality Report
+
+## Summary
+
+| Item | Value |
+|------|-------|
+| **Project** | ${PROJECT_NAME} |
+| **Project Key** | ${PROJECT_KEY} |
+| **Quality Gate** | ${QG_ICON} (${QG_STATUS}) |
+| **Generated** | ${TIMESTAMP} |
+| **Branch** | ${BRANCH} |
+| **Commit** | ${SHORT_SHA} |
+| **Workflow Run** | #${RUN_NUMBER} (ID: ${RUN_ID}) |
+
+## Quality Gate Status
+
+**Status: ${QG_ICON}**
+
+The Quality Gate status indicates whether the project meets the defined quality standards.
+
+## Code Metrics
+
+### Overview
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Lines of Code | ${NCLOC} | Total lines of code analyzed |
+| Bugs | ${BUGS} | Reliability issues |
+| Vulnerabilities | ${VULNERABILITIES} | Security issues |
+| Security Hotspots | ${HOTSPOTS} | Security-sensitive code to review |
+| Code Smells | ${CODE_SMELLS} | Maintainability issues |
+| Coverage | ${COVERAGE}% | Test coverage percentage |
+| Duplications | ${DUPLICATED}% | Duplicated lines percentage |
+
+### Issues by Severity
+
+| Severity | Count |
+|----------|-------|
+| Blocker | ${BLOCKER_ISSUES} |
+| Critical | ${CRITICAL_ISSUES} |
+| Major | ${MAJOR_ISSUES} |
+| Minor | ${MINOR_ISSUES} |
+| **Total** | **${TOTAL_ISSUES}** |
+
+## Analysis Details
+
+### Scan Configuration
+
+- **Scan Path:** ${SCAN_PATH}
+- **Source Directory:** src
+- **Exclusions:** node_modules/**, dist/**, build/**, coverage/**, *.spec.ts, *.test.ts
+
+### SonarQube Server
+
+- **Version:** LTS Community Edition (9.9.x)
+- **Mode:** Ephemeral (in-workflow container)
+
+## Raw Data Files
+
+The following JSON files contain the complete analysis data:
+
+- `quality-gate.json` - Quality Gate status and conditions
+- `metrics.json` - All project metrics
+- `issues.json` - Detailed issue list
+- `hotspots.json` - Security hotspots
+- `analyses.json` - Analysis history
+
+---
+
+*Report generated automatically by SonarQube Scan Workflow*
+*Workflow: .github/workflows/sonarq.yml*
