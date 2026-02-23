@@ -11,17 +11,14 @@ inputs:
   path:
     description: Path to scan
     required: true
-    type: string
     default: "api"
   project_key:
     description: Project key
     required: false
-    type: string
     default: "nome-do-projeto"
   project_name:
     description: Project name
     required: false
-    type: string
     default: "Nome do Projeto"
 
 outputs:
@@ -49,6 +46,7 @@ runs:
 
       - name: Set scan path
         id: config
+        shell: bash
         run: |
           scan_path="${{ inputs.path }}"
           if [ -z "$scan_path" ]; then
