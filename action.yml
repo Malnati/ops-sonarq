@@ -57,6 +57,7 @@ runs:
 
       - name: Detect SonarQube Host
         id: sonar-host
+        shell: bash
         run: |
           echo "Detecting SonarQube host URL..."
           sonar_url=""
@@ -78,6 +79,7 @@ runs:
           echo "Using SonarQube URL: $sonar_url"
 
       - name: Wait for SonarQube to be ready
+        shell: bash
         run: |
           echo "Waiting for SonarQube server at $SONAR_HOST_URL to be fully operational..."
           max_attempts=60
@@ -107,6 +109,7 @@ runs:
           done
 
       - name: Configure SonarQube Project
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           project_key="${{ inputs.project_key }}"
@@ -126,6 +129,7 @@ runs:
           cat "$scan_path/sonar-project.properties"
 
       - name: Download and Setup Sonar Scanner
+        shell: bash
         run: |
           echo "Downloading SonarScanner CLI v$SONAR_SCANNER_VERSION..."
           curl -fsSL -o /tmp/sonar-scanner.zip "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip"
@@ -138,6 +142,7 @@ runs:
           ls -la "$scanner_dir/bin/"
 
       - name: Verify Source Directory
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           echo "Checking source directory: $scan_path"
@@ -156,6 +161,7 @@ runs:
           find "$scan_path/src" -type f -name "*.ts" 2>/dev/null | wc -l || echo "0"
             
       - name: Run SonarQube Scan
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           project_key="${{ inputs.project_key }}"
@@ -185,6 +191,7 @@ runs:
           echo "SonarQube scan completed"
 
       - name: Wait for Analysis Processing
+        shell: bash
         run: |
           echo "Waiting for SonarQube to process analysis results..."
           sleep 30
@@ -212,6 +219,7 @@ runs:
           done
 
       - name: Create Report Directory
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           report_dir="${scan_path}/.sonarq"
@@ -221,6 +229,7 @@ runs:
           ls -la "$scan_path"
 
       - name: Extract SonarQube Report
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           report_dir="${scan_path}/.sonarq"
@@ -250,6 +259,7 @@ runs:
           cat metrics.json
 
       - name: Generate Detailed Markdown Report
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           report_dir="${scan_path}/.sonarq"
@@ -323,6 +333,7 @@ runs:
           cat "$report_dir/REPORT.md"
 
       - name: Verify Report Files
+        shell: bash
         run: |
           scan_path="${{ steps.config.outputs.scan_path }}"
           report_dir="${scan_path}/.sonarq"
@@ -342,6 +353,7 @@ runs:
           echo "All report files verified successfully"
 
       - name: Commit Report via Pull Request
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
