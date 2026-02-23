@@ -1,0 +1,470 @@
+<!-- docs/index.html -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0b1220" />
+    <title>Malnati/ops-literal</title>
+    <meta
+      name="description"
+      content="Export file content as safe, multiline-ready GitHub Actions outputs (without leaking logs)."
+    />
+    <style>
+      :root{
+        --bg:#070b14;
+        --card:#0b1220;
+        --card2:#0f1a33;
+        --text:#e8eefc;
+        --muted:#a9b4d0;
+        --line:rgba(255,255,255,.10);
+        --brand:#7c3aed;
+        --brand2:#22c55e;
+        --shadow: 0 14px 36px rgba(0,0,0,.45);
+        --radius: 18px;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family:var(--sans);
+        color:var(--text);
+        background:
+          radial-gradient(900px 500px at 12% -10%, rgba(124,58,237,.35), transparent 55%),
+          radial-gradient(900px 500px at 88% -10%, rgba(34,197,94,.25), transparent 55%),
+          radial-gradient(1000px 700px at 50% 120%, rgba(59,130,246,.12), transparent 60%),
+          linear-gradient(180deg, #050812 0%, var(--bg) 40%, #050812 100%);
+        min-height:100vh;
+      }
+      a{color:inherit;text-decoration:none}
+      .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+      .topbar{
+        position:sticky;top:0;z-index:50;
+        backdrop-filter: blur(10px);
+        background: rgba(7,11,20,.72);
+        border-bottom:1px solid var(--line);
+      }
+      .topbar .row{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:14px 0;
+        gap:14px;
+      }
+      .brand{
+        display:flex;align-items:center;gap:12px;
+        font-weight:800;letter-spacing:.2px;
+      }
+      .logo{
+        width:34px;height:34px;border-radius:12px;
+        background:
+          radial-gradient(16px 16px at 30% 30%, rgba(255,255,255,.22), transparent 65%),
+          linear-gradient(135deg, rgba(124,58,237,.95), rgba(34,197,94,.85));
+        box-shadow: 0 8px 22px rgba(124,58,237,.25);
+        border:1px solid rgba(255,255,255,.12);
+      }
+      .nav{
+        display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      }
+      .pill{
+        display:inline-flex;align-items:center;gap:10px;
+        padding:10px 12px;border-radius:999px;
+        border:1px solid var(--line);
+        background: rgba(255,255,255,.04);
+        color:var(--muted);
+        transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      }
+      .pill:hover{transform:translateY(-1px);background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:var(--text)}
+      .pill svg{width:16px;height:16px;opacity:.9}
+      .hero{
+        padding:54px 0 22px;
+      }
+      .hero-grid{
+        display:grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap:22px;
+        align-items:stretch;
+      }
+      @media (max-width: 960px){
+        .hero-grid{grid-template-columns:1fr}
+      }
+      .hero-side{display:flex;flex-direction:column;gap:12px;height:100%}
+      .card{
+        background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+        border:1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .hero .card{
+        padding:26px 26px 22px;
+        position:relative;
+        overflow:hidden;
+      }
+      .hero h1{
+        margin:0;
+        font-size: clamp(28px, 4vw, 44px);
+        line-height:1.05;
+        letter-spacing:-.6px;
+      }
+      .hero p{
+        margin:14px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height:1.55;
+        max-width: 62ch;
+      }
+      .badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+      .badge{
+        display:inline-flex;align-items:center;gap:8px;
+        padding:8px 10px;border-radius:999px;
+        border:1px solid var(--line);
+        background: rgba(255,255,255,.04);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .badge .dot{
+        width:7px;height:7px;border-radius:99px;
+        background: rgba(34,197,94,.9);
+        box-shadow: 0 0 0 5px rgba(34,197,94,.10);
+      }
+      .cta{
+        display:flex;flex-wrap:wrap;gap:10px;margin-top:22px
+      }
+      .btn{
+        display:inline-flex;align-items:center;justify-content:center;gap:10px;
+        padding:12px 14px;border-radius: 12px;
+        border:1px solid var(--line);
+        background: rgba(255,255,255,.04);
+        color: var(--text);
+        font-weight:700;
+        transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      }
+      .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18)}
+      .btn svg{width:18px;height:18px}
+      .btn.primary{
+        border-color: rgba(124,58,237,.55);
+        background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(34,197,94,.55));
+        box-shadow: 0 14px 40px rgba(124,58,237,.18);
+      }
+      .btn.primary:hover{border-color: rgba(255,255,255,.20)}
+      .mini{
+        padding:20px 20px 18px;
+      }
+      .mini h3{margin:0;font-size:16px}
+      .mini p{margin:10px 0 0;color:var(--muted);line-height:1.55}
+      .mini ul{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+      .mini li{
+        display:flex;gap:10px;align-items:flex-start;
+        color:var(--muted);
+      }
+      .mini li svg{width:18px;height:18px;flex:0 0 auto;opacity:.95}
+      .section{
+        padding: 10px 0 0;
+      }
+      .grid3{
+        display:grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 960px){
+        .grid3{grid-template-columns:1fr}
+      }
+      .tile{
+        padding:18px 18px 16px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(11,18,32,.80), rgba(11,18,32,.55));
+      }
+      .tile h3{margin:0;font-size:15px;letter-spacing:.1px}
+      .tile p{margin:10px 0 0;color:var(--muted);line-height:1.55}
+      .tile .icon{
+        width:36px;height:36px;border-radius:14px;
+        border:1px solid rgba(255,255,255,.12);
+        background: radial-gradient(18px 18px at 30% 30%, rgba(255,255,255,.16), transparent 60%),
+                    linear-gradient(135deg, rgba(59,130,246,.38), rgba(124,58,237,.35));
+        display:flex;align-items:center;justify-content:center;
+        margin-bottom: 10px;
+      }
+      .tile .icon svg{width:18px;height:18px;opacity:.95}
+      .codecard{
+        margin-top: 18px;
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(15,26,51,.85), rgba(11,18,32,.75));
+        overflow:auto;
+      }
+      pre{
+        margin:0;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.5;
+        color: #dbe7ff;
+        white-space: pre;
+      }
+      .caption{
+        display:flex;align-items:center;justify-content:space-between;gap:10px;
+        margin-bottom: 10px;
+      }
+      .caption strong{font-size:14px}
+      .caption span{color:var(--muted);font-size:13px}
+      .split{
+        display:grid;grid-template-columns: 1fr 1fr;gap:16px;margin-top:16px;
+      }
+      @media (max-width: 960px){
+        .split{grid-template-columns:1fr}
+      }
+      .image-card{
+        padding: 12px;
+        overflow: hidden;
+      }
+      .image-card img{
+        width:100%;
+        display:block;
+        border-radius: 14px;
+        box-shadow: 0 10px 28px rgba(0,0,0,.36);
+        object-fit: cover;
+      }
+      .image-caption{
+        margin-top:10px;
+        color:var(--muted);
+        font-size:13px;
+        line-height:1.45;
+      }
+      .footer{
+        margin-top: 38px;
+        padding: 26px 0 42px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .footer .row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+      .smalllinks{display:flex;gap:12px;flex-wrap:wrap}
+      .smalllinks a{color:var(--muted)}
+      .smalllinks a:hover{color:var(--text)}
+      .avatar{
+        width:40px;
+        height:40px;
+        border-radius:12px;
+        border:1px solid var(--line);
+        object-fit:cover;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wrap">
+        <div class="row">
+          <div class="brand">
+            <div class="logo" aria-hidden="true"></div>
+            <div>
+              <div style="font-size:14px;color:var(--muted);margin-bottom:2px">GitHub Action</div>
+              <div style="font-size:16px">Malnati/ops-literal</div>
+            </div>
+          </div>
+
+          <nav class="nav" aria-label="Primary">
+            <a class="pill" href="https://github.com/Malnati/ops-literal" target="_blank" rel="noreferrer">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2c5.523 0 10 4.477 10 10 0 4.418-2.865 8.165-6.839 9.489-.5.093-.682-.217-.682-.483 0-.237.009-.866.014-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.53 2.341 1.088 2.91.832.091-.647.349-1.089.635-1.34-2.22-.252-4.555-1.11-4.555-4.943 0-1.091.39-1.985 1.03-2.683-.103-.253-.446-1.27.098-2.646 0 0 .84-.269 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.295 2.748-1.026 2.748-1.026.546 1.376.203 2.393.1 2.646.64.698 1.028 1.592 1.028 2.683 0 3.842-2.338 4.687-4.566 4.935.359.309.679.919.679 1.852 0 1.337-.012 2.417-.012 2.747 0 .268-.18.58-.688.481C4.867 20.162 2 16.416 2 12 2 6.477 6.477 2 12 2Z" fill="currentColor" opacity=".92"/></svg>
+              <span>Repository</span>
+            </a>
+            <a class="pill" href="https://github.com/marketplace/actions/ops-literal" target="_blank" rel="noreferrer">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 7.5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3v-9Z" stroke="currentColor" stroke-width="2" opacity=".92"/><path d="M9 9h8M9 12h8M9 15h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".92"/></svg>
+              <span>Marketplace</span>
+            </a>
+            <a class="pill" href="https://github.com/Malnati/ops-literal/blob/main/docs/README.md" target="_blank" rel="noreferrer">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" opacity=".92"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".92"/></svg>
+              <span>Docs</span>
+            </a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <div class="hero-grid">
+          <div class="card">
+            <h1>Safe “literal” outputs for GitHub Actions.</h1>
+            <p>
+              <b>ops-literal</b> reads a file (or raw text) and exports it as a <b>multiline-ready output</b>
+              for downstream steps — designed to avoid accidental log leaks in IssueOps / PR automations.
+            </p>
+
+            <div class="badges" aria-label="Highlights">
+              <span class="badge"><span class="dot" aria-hidden="true"></span>Multiline-safe outputs</span>
+              <span class="badge"><span class="dot" aria-hidden="true"></span>Optional truncation</span>
+              <span class="badge"><span class="dot" aria-hidden="true"></span>Hashing for traceability</span>
+              <span class="badge"><span class="dot" aria-hidden="true"></span>No content printed by default</span>
+            </div>
+
+            <div class="cta">
+              <a class="btn primary" href="https://github.com/Malnati/ops-literal" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2c5.523 0 10 4.477 10 10 0 4.418-2.865 8.165-6.839 9.489-.5.093-.682-.217-.682-.483 0-.237.009-.866.014-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.53 2.341 1.088 2.91.832.091-.647.349-1.089.635-1.34-2.22-.252-4.555-1.11-4.555-4.943 0-1.091.39-1.985 1.03-2.683-.103-.253-.446-1.27.098-2.646 0 0 .84-.269 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.295 2.748-1.026 2.748-1.026.546 1.376.203 2.393.1 2.646.64.698 1.028 1.592 1.028 2.683 0 3.842-2.338 4.687-4.566 4.935.359.309.679.919.679 1.852 0 1.337-.012 2.417-.012 2.747 0 .268-.18.58-.688.481C4.867 20.162 2 16.416 2 12 2 6.477 6.477 2 12 2Z" fill="currentColor" opacity=".92"/></svg>
+                <span>Open repository</span>
+              </a>
+              <a class="btn" href="https://github.com/marketplace/actions/ops-literal" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 7.5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3v-9Z" stroke="currentColor" stroke-width="2" opacity=".92"/><path d="M9 9h8M9 12h8M9 15h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".92"/></svg>
+                <span>View on Marketplace</span>
+              </a>
+              <a class="btn" href="https://github.com/Malnati/ops-literal/blob/main/README.md" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" opacity=".92"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".92"/></svg>
+                <span>Read README</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="hero-side">
+            <aside class="card mini">
+              <h3>Built for automation flows</h3>
+              <p>
+                Move content safely across steps: PR bodies, timeline comments, job summaries, or action inputs.
+              </p>
+              <ul>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Read from <b>path</b> or <b>text</b></span>
+                </li>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 1v22M1 12h22" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/><path d="M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <span>Multiline export (Markdown/JSON ready)</span>
+                </li>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2 3 6.5V12c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6.5L12 2Z" stroke="currentColor" stroke-width="2"/></svg>
+                  <span>Designed to avoid content leaks by default</span>
+                </li>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h12M4 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <span>Optional truncation for predictable limits</span>
+                </li>
+              </ul>
+            </aside>
+
+            <figure class="card image-card">
+              <img src="https://raw.githubusercontent.com/Malnati/ops-literal/91baaf5ebb4b92a9adaeeab36b7ecffac358fc3f/assets/ops-literal-whatisit-large.png" alt="Workflow summary showing ops-literal exporting a report as a reusable output." />
+              <figcaption class="image-caption">
+                Preview of a GitHub Actions run that publishes a sanitized report with <strong>ops-literal</strong>.
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="grid3">
+          <div class="tile">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4V6Z" stroke="currentColor" stroke-width="2"/><path d="M7 9h10M7 12h10M7 15h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <h3>Export file content as output</h3>
+            <p>Stop re-implementing “cat file → escape → export” in every workflow.</p>
+          </div>
+
+          <div class="tile">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Z" stroke="currentColor" stroke-width="2"/><path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="currentColor" opacity=".18"/></svg>
+            </div>
+            <h3>Basename mode</h3>
+            <p>Need only the filename (without path) for templates or comments? Use <b>mode: basename</b>.</p>
+          </div>
+
+          <div class="tile">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M20 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2" stroke="currentColor" stroke-width="2"/><path d="M4 8h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" stroke-width="2"/><path d="M8 12h8M8 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <h3>Hash mode</h3>
+            <p>Generate <b>sha256</b> for traceability and signatures without posting the full content.</p>
+          </div>
+        </div>
+
+        <figure class="card image-card" style="margin-top:16px">
+          <img src="https://raw.githubusercontent.com/Malnati/ops-literal/91baaf5ebb4b92a9adaeeab36b7ecffac358fc3f/assets/ops-literal-whatisit-large.png" alt="Illustration of what ops-literal exports as GitHub Actions outputs." />
+          <figcaption class="image-caption">
+            Visual reference of the literal outputs: file content, basename-only exports, and sha256 hashes ready for reuse in workflows.
+          </figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="codecard">
+            <div class="caption">
+              <strong>Quick start</strong>
+              <span>export report content</span>
+            </div>
+            <pre>- name: "📦 Export report as literal"
+  id: literal
+  uses: Malnati/ops-literal@v1
+  with:
+    path: .reports/20251215-1530_hardcode.json
+    max_bytes: 80000
+    output_name: report
+
+- name: "🧾 Use in Job Summary"
+  shell: bash
+  run: |
+    printf '%s\n' "${{ steps.literal.outputs.report }}" &gt;&gt; "$GITHUB_STEP_SUMMARY"</pre>
+          </div>
+
+          <div class="codecard">
+            <div class="caption">
+              <strong>Basename</strong>
+              <span>filename only</span>
+            </div>
+            <pre>- name: "📦 Export filename"
+  id: literal_name
+  uses: Malnati/ops-literal@v1
+  with:
+    path: .reports/20251215-1530_hardcode.json
+    output_name: filename
+    mode: basename
+
+- name: "🔎 Show filename"
+  run: echo "${{ steps.literal_name.outputs.filename }}"</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" style="margin-top:18px">
+        <div class="card" style="padding:18px 18px 16px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:800;font-size:16px;margin-bottom:6px">Documentation</div>
+              <div style="color:var(--muted);line-height:1.55">
+                Prefer reading docs outside GitHub Pages? Use the repository docs file.
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <a class="btn" href="https://github.com/Malnati/ops-literal/blob/main/docs/README.md" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" opacity=".92"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".92"/></svg>
+                <span>Open docs/README.md</span>
+              </a>
+              <a class="btn" href="https://github.com/Malnati/ops-literal/issues" target="_blank" rel="noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z" stroke="currentColor" stroke-width="2" opacity=".92"/><path d="M12 16h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M12 12V8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span>Open issues</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="row">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <img class="avatar" src="https://raw.githubusercontent.com/Malnati/ops-literal/91baaf5ebb4b92a9adaeeab36b7ecffac358fc3f/assets/ops-literal-avatar-original.jpeg" alt="ops-literal avatar" />
+            <div>
+              <div style="font-weight:800;color:var(--text)">Malnati/ops-literal</div>
+              <div style="margin-top:6px">© <span id="y"></span> • GitHub Action landing page</div>
+              <div style="margin-top:6px">Maintained by Malnati</div>
+            </div>
+          </div>
+          <div class="smalllinks" aria-label="Footer links">
+            <a href="https://github.com/Malnati/ops-literal" target="_blank" rel="noreferrer">Repository</a>
+            <a href="https://github.com/marketplace/actions/ops-literal" target="_blank" rel="noreferrer">Marketplace</a>
+            <a href="https://github.com/Malnati/ops-literal/blob/main/LICENSE" target="_blank" rel="noreferrer">License</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script>
+      document.getElementById("y").textContent = String(new Date().getFullYear());
+    </script>
+  </body>
+</html>
