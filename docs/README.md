@@ -1,54 +1,53 @@
-<!-- docs/README.md -->
-<h1 align="center">ops-sonarq</h1>
+# ops-sonarq docs
 
-<p align="center">
-  <b>GitHub Action para análise de código com SonarQ, outputs idempotentes e reutilizáveis.</b>
-</p>
+Esta documentacao reflete o comportamento atual de `action.yml`.
 
-<p align="center">
-  <a href="https://github.com/Malnati/ops-sonarq"><b>Repository</b></a>
-  •
-  <a href="https://github.com/Malnati/ops-sonarq/issues"><b>Issues</b></a>
-</p>
+## Resumo
 
-<hr/>
+`ops-sonarq` e uma GitHub Action composta que:
 
+- executa scan no SonarQube para o `path` informado;
+- gera relatorios em `path/.sonarq`;
+- faz commit em branch dedicada e tenta abrir PR;
+- publica artifact `sonarqube-report`.
 
-## O que é?
+## Inputs
 
-**ops-sonarq** é uma GitHub Action que executa análise de código com SonarQ, de forma idempotente, exportando resultados como outputs reutilizáveis no workflow.
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `path` | yes | `api` | Path to scan |
+| `project_key` | no | `nome-do-projeto` | Project key |
+| `project_name` | no | `Nome do Projeto` | Project name |
 
-Ideal para automações CI/CD que precisam garantir análise consistente e outputs prontos para uso em etapas seguintes.
+## Outputs declarados
 
-## Exemplo de uso
+| Output | Description |
+|---|---|
+| `json` | Generated JSON file path (array). |
+| `report_path` | Generated JSON file path (array). |
+| `status` | Scan status. |
+| `count` | Number of literals found. |
+
+Nota: os outputs acima estao declarados, mas hoje dependem de `steps.generate_output` que nao existe no fluxo.
+
+## Relatorios gerados
+
+Diretorio: `path/.sonarq`
+
+- `quality-gate.json`
+- `metrics.json`
+- `issues.json`
+- `hotspots.json`
+- `analyses.json`
+- `REPORT.md`
+
+## Exemplo
 
 ```yaml
-- name: "🔎 Scan com ops-sonarq"
+- name: Run ops-sonarq
   uses: Malnati/ops-sonarq@v1.0.0
   with:
-    path: "api" # diretório a ser escaneado
-    project_key: "meu-projeto"
-    project_name: "Meu Projeto"
+    path: api
+    project_key: meu-projeto
+    project_name: Meu Projeto
 ```
-
-### Entradas
-
-| Input        | Obrigatório | Default            | Descrição                |
-|--------------|-------------|--------------------|--------------------------|
-| path         | sim         | "api"              | Caminho a ser escaneado  |
-| project_key  | não         | "nome-do-projeto"  | Chave do projeto SonarQ  |
-| project_name | não         | "Nome do Projeto"  | Nome do projeto SonarQ   |
-
-### Saídas
-
-| Output      | Descrição                                 |
-|-------------|-------------------------------------------|
-| json        | Caminho do arquivo JSON gerado (array)    |
-| report_path | Caminho do relatório gerado (array)       |
-| status      | Status do scan                            |
-| count       | Quantidade de literais encontradas        |
-
-### Licença
-
-MIT. Veja LICENSE.
-

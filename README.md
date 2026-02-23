@@ -1,127 +1,90 @@
+# Malnati/ops-sonarq
 
-<!-- README.md -->
-<h1 align="center">Malnati/ops-sonarq</h1>
+GitHub Action composta para executar analise SonarQube em um diretorio do repositorio, gerar relatorios em `path/.sonarq`, publicar artifact e abrir PR com os arquivos gerados.
 
-<p align="center">
-  <b>Scan with idempotence. GitHub Action para análise de código com SonarQ.</b>
-</p>
+## O que a action faz hoje
 
-<p align="center">
-  <a href="https://github.com/Malnati/ops-sonarq/releases">
-    <img alt="Release" src="https://img.shields.io/github/v/release/Malnati/ops-sonarq?include_prereleases" />
-  </a>
-  <a href="https://github.com/Malnati/ops-sonarq/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
-  </a>
-  <img alt="Marketplace" src="https://img.shields.io/badge/marketplace-coming%20soon-lightgrey" />
-</p>
+Fluxo implementado em `action.yml`:
 
-<p align="center">
-  <a href="https://github.com/Malnati/ops-sonarq"><b>Repository</b></a>
-  •
-  <a href="https://github.com/Malnati/ops-sonarq/issues"><b>Issues</b></a>
-</p>
+1. Faz checkout do repositorio (`actions/checkout@v4`).
+2. Define `scan_path` a partir de `inputs.path` (fallback `api`).
+3. Detecta URL do SonarQube tentando:
+   - `http://localhost:9000`
+   - `http://sonarqube:9000`
+   - `http://127.0.0.1:9000`
+   - `http://host.docker.internal:9000`
+4. Aguarda o SonarQube ficar `UP`.
+5. Gera `sonar-project.properties` com `envsubst` a partir de `.github/templates/sonar-project.properties.template`.
+6. Baixa SonarScanner CLI e adiciona ao `PATH`.
+7. Garante existencia de `path/src` (cria placeholder quando ausente).
+8. Executa scan SonarQube com login/senha `admin/admin`.
+9. Aguarda processamento da analise.
+10. Extrai dados via API SonarQube para `path/.sonarq`.
+11. Gera `REPORT.md` com `envsubst` usando `.github/templates/sonarqube-report.md.template`.
+12. Cria branch, commit e tenta abrir PR com os relatorios.
+13. Publica artifact `sonarqube-report` com `actions/upload-artifact@v4`.
 
-<hr/>
+## Inputs
 
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `path` | yes | `api` | Path to scan |
+| `project_key` | no | `nome-do-projeto` | Project key |
+| `project_name` | no | `Nome do Projeto` | Project name |
 
-## O que é?
+## Outputs declarados
 
-**ops-sonarq** é uma GitHub Action que executa análise de código com SonarQ, de forma idempotente, exportando resultados como outputs reutilizáveis no workflow.
+| Output | Description em `action.yml` |
+|---|---|
+| `json` | Generated JSON file path (array). |
+| `report_path` | Generated JSON file path (array). |
+| `status` | Scan status. |
+| `count` | Number of literals found. |
 
-Ideal para automações CI/CD que precisam garantir análise consistente e outputs prontos para uso em etapas seguintes.
+Observacao importante: no estado atual do `action.yml`, os outputs apontam para `steps.generate_output.outputs.*`, mas nao existe step com `id: generate_output`.
 
-<p align="center">
-  <a href="https://github.com/Malnati/ops-literal">
-    <img alt="Ops-literal" src="assets/ops-literal-whatisit-large.png" />
-  </a>
-</p>
+## Arquivos gerados
 
-## Why
+No diretorio `path/.sonarq`:
 
-GitHub Actions has a few sharp edges around:
-- multiline values
-- output escaping
-- accidentally leaking logs
-- having to “re-implement file reading” in every workflow
-
-This action standardizes the “read → sanitize → optionally truncate → export” workflow.
-
-## Features
-
-- ✅ Escaneia o diretório informado (`path`)
+- `quality-gate.json`
+- `metrics.json`
+- `issues.json`
+- `hotspots.json`
+- `analyses.json`
+- `REPORT.md`
 
 ## Exemplo de uso
 
 ```yaml
-- name: "🔎 Scan com ops-sonarq"
-  uses: Malnati/ops-sonarq@v1.0.0
-  with:
-    path: "api" # diretório a ser escaneado
-    project_key: "meu-projeto"
-    project_name: "Meu Projeto"
+name: sonarq
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ops-sonarq
+        uses: Malnati/ops-sonarq@v1.0.0
+        with:
+          path: api
+          project_key: meu-projeto
+          project_name: Meu Projeto
 ```
 
-### Entradas
+## Dependencias e premissas reais
 
-| Input        | Obrigatório | Default            | Descrição                |
-|--------------|-------------|--------------------|--------------------------|
-| path         | sim         | "api"              | Caminho a ser escaneado  |
-| project_key  | não         | "nome-do-projeto"  | Chave do projeto SonarQ  |
-| project_name | não         | "Nome do Projeto"  | Nome do projeto SonarQ   |
+- O fluxo usa comandos `npm`, `curl`, `unzip`, `envsubst`, `git` e `gh`.
+- O scanner e as APIs SonarQube estao configurados com `admin/admin`.
+- O workflow espera templates em `.github/templates/`:
+  - `eslint.config.cjs.template`
+  - `sonar-project.properties.template`
+  - `sonarqube-report.md.template`
 
-### Saídas
+## Licenca
 
-| Output      | Descrição                                 |
-|-------------|-------------------------------------------|
-| json        | Caminho do arquivo JSON gerado (array)    |
-| report_path | Caminho do relatório gerado (array)       |
-| status      | Status do scan                            |
-| count       | Quantidade de literais encontradas        |
-
-### Licença
-
-MIT. Veja LICENSE.
-          path: |
-            ${{ steps.config.outputs.scan_path }}/.hardcode/
-          retention-days: 30  
-```
-
-#### Inputs
-
-##### Input	Required	Default	Description
-- path	no*	—	File path to read (preferred).
-- text	no*	—	Raw text to export as output.
-- output_name	no	literal	Output key name.
-- mode	no	content	content | basename | sha256
-- max_bytes	no	0	If > 0, truncates output to this size (bytes).
-- trim	no	true	Trim trailing whitespace/newlines.
-- fail_on_missing	no	true	Fail if path does not exist (when path is used).
-
-* Provide either path or text.
-
-#### Outputs
-
-##### Output	Description
-- `<output_name>`	The exported value (content/basename/hash depending on mode).
-- bytes	Byte size of the original content.
-- truncated	true if truncation happened.
-
-###### Use with reports (avoid printing content)
-- Prefer max_bytes to keep outputs predictable.
-- Prefer writing to $GITHUB_STEP_SUMMARY over echoing large payloads to the log.
-
-###### Security notes
-- This action should not print file content by default.
-- Never feed secrets into text or path content that might be posted publicly (PR comments, summaries, artifacts).
-- Use GitHub permissions minimally (this action does not need extra permissions by itself).
-
-#### Versioning
-
-###### This project uses semantic versioning.
-- Pin to a major version: Malnati/ops-literal@v1
-- Or pin to an exact tag: Malnati/ops-literal@v1.0.0
-
-### License
-
-MIT. See LICENSE￼.
+MIT.
