@@ -13,6 +13,37 @@ NC='\033[0m'
 passed=0
 failed=0
 results=()
+sonarqube_started=0
+
+cleanup() {
+  if [ "$sonarqube_started" -eq 1 ]; then
+    docker rm -f ops-sonarq-sonarqube >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+ensure_sonarqube() {
+  if curl -fsS "http://localhost:9000/api/system/status" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo -e "${RED}ERROR:${NC} SonarQube is not running on http://localhost:9000 and docker is not available."
+    echo "Start SonarQube manually or install docker, then rerun the tests."
+    exit 1
+  fi
+
+  if docker ps --format '{{.Names}}' | grep -q '^ops-sonarq-sonarqube$'; then
+    return 0
+  fi
+
+  docker rm -f ops-sonarq-sonarqube >/dev/null 2>&1 || true
+  docker run -d --name ops-sonarq-sonarqube \
+    -p 9000:9000 \
+    -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
+    sonarqube:lts-community >/dev/null
+  sonarqube_started=1
+}
 
 run_scan() {
   local path="$1"
@@ -54,12 +85,83 @@ run_scan() {
   fi
 }
 
+run_workflow_cli() {
+  local workflow_name="Workflow test.yml"
+
+  echo ""
+  echo -e "${YELLOW}========================================${NC}"
+  echo -e "${YELLOW}  Running: $workflow_name${NC}"
+  echo -e "${YELLOW}========================================${NC}"
+  echo ""
+
+  if ! command -v act &>/dev/null; then
+    echo -e "${RED}[FAIL]${NC} $workflow_name - act not installed"
+    results+=("FAIL|$workflow_name|N/A|N/A|N/A|N/A|N/A")
+    failed=$((failed + 1))
+    return
+  fi
+
+  rm -rf "$repo_root/.tests/api/.sonarq" "$repo_root/.tests/react/.sonarq"
+
+  if ! act -W "$repo_root/.github/workflows/test.yml" workflow_dispatch \
+    -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest; then
+    echo -e "${RED}[FAIL]${NC} $workflow_name - workflow failed"
+    results+=("FAIL|$workflow_name|N/A|N/A|N/A|N/A|N/A")
+    failed=$((failed + 1))
+    return
+  fi
+
+  local ok=1
+  local report_dir=""
+  local qg=""
+  local bugs=""
+  local vulns=""
+  local smells=""
+  local hotspots=""
+
+  report_dir="$repo_root/.tests/api/.sonarq"
+  if [ -f "$report_dir/REPORT.md" ] && [ -f "$report_dir/quality-gate.json" ]; then
+    qg=$(grep -oP '"status"\s*:\s*"\K[^"]+' "$report_dir/quality-gate.json" 2>/dev/null | head -1 || echo "UNKNOWN")
+    bugs=$(grep -oP '"metric"\s*:\s*"bugs"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+    vulns=$(grep -oP '"metric"\s*:\s*"vulnerabilities"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+    smells=$(grep -oP '"metric"\s*:\s*"code_smells"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+    hotspots=$(grep -oP '"metric"\s*:\s*"security_hotspots"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+  else
+    ok=0
+  fi
+
+  report_dir="$repo_root/.tests/react/.sonarq"
+  if [ -f "$report_dir/REPORT.md" ] && [ -f "$report_dir/quality-gate.json" ]; then
+    qg=$(grep -oP '"status"\s*:\s*"\K[^"]+' "$report_dir/quality-gate.json" 2>/dev/null | head -1 || echo "UNKNOWN")
+    bugs=$(grep -oP '"metric"\s*:\s*"bugs"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+    vulns=$(grep -oP '"metric"\s*:\s*"vulnerabilities"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+    smells=$(grep -oP '"metric"\s*:\s*"code_smells"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+    hotspots=$(grep -oP '"metric"\s*:\s*"security_hotspots"[^}]*"value"\s*:\s*"\K[^"]+' "$report_dir/metrics.json" 2>/dev/null | head -1 || echo "?")
+  else
+    ok=0
+  fi
+
+  if [ "$ok" -eq 1 ]; then
+    echo ""
+    echo -e "${GREEN}[PASS]${NC} $workflow_name - QG=$qg bugs=$bugs vulns=$vulns smells=$smells hotspots=$hotspots"
+    results+=("PASS|$workflow_name|$qg|$bugs|$vulns|$smells|$hotspots")
+    passed=$((passed + 1))
+  else
+    echo -e "${RED}[FAIL]${NC} $workflow_name - report files missing"
+    results+=("FAIL|$workflow_name|N/A|N/A|N/A|N/A|N/A")
+    failed=$((failed + 1))
+  fi
+}
+
 echo "========================================"
 echo "  ops-sonarq E2E Test Suite"
 echo "========================================"
 
+ensure_sonarqube
+
 run_scan ".tests/api" "e2e-api" "E2E API"
 run_scan ".tests/react" "e2e-react" "E2E React"
+run_workflow_cli
 
 echo ""
 echo "========================================"

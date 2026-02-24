@@ -31,6 +31,7 @@ Fluxo implementado em `action.yml`:
 | `path` | yes | `api` | Path to scan |
 | `project_key` | no | `nome-do-projeto` | Project key |
 | `project_name` | no | `Nome do Projeto` | Project name |
+| `skip_pr` | no | `false` | Skip commit/PR step |
 
 ## Outputs declarados
 

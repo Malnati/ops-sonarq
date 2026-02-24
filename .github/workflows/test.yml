@@ -15,8 +15,8 @@ env:
   SONAR_HOST_URL: "http://localhost:9000"
 
 jobs:
-  sonarqube-scan:
-    name: SonarQube Analysis
+  sonarqube-scan-api:
+    name: SonarQube Analysis (API)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -32,9 +32,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run SonarQube Action
+      - name: Run SonarQube Action (API)
         uses: ./
         with:
           path: .tests/api
-          project_key: test-project
-          project_name: Test Project
+          project_key: e2e-api
+          project_name: E2E API
+          skip_pr: true
+
+  sonarqube-scan-react:
+    name: SonarQube Analysis (React)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      sonarqube:
+        image: sonarqube:lts-community
+        ports:
+          - 9000:9000
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run SonarQube Action (React)
+        uses: ./
+        with:
+          path: .tests/react
+          project_key: e2e-react
+          project_name: E2E React
+          skip_pr: true

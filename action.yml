@@ -20,6 +20,10 @@ inputs:
     description: Project name
     required: false
     default: "Nome do Projeto"
+  skip_pr:
+    description: Skip commit/PR step
+    required: false
+    default: "false"
 
 outputs:
   report_path:
@@ -106,6 +110,7 @@ runs:
 
       - name: Commit Report via Pull Request
         shell: bash
+        if: ${{ inputs.skip_pr != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash assets/sonarq-commit-report.sh
