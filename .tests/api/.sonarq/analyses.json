@@ -1,0 +1,1 @@
+{"paging":{"pageIndex":1,"pageSize":100,"total":1},"analyses":[{"key":"AZyQcIiavR2A-V0OJWjo","date":"2026-02-24T16:16:36+0000","events":[{"key":"AZyQcKwkvR2A-V0OJWor","category":"VERSION","name":"1.0"}],"projectVersion":"1.0","manualNewCodePeriodBaseline":false,"revision":"7d2220460b85f2f958729776a48e2d36da2adfe7","detectedCI":"undetected"}]}
