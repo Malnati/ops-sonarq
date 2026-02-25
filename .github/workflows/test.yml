@@ -3,6 +3,27 @@ name: "SonarQube Scan"
 
 on:
   workflow_dispatch:
+    inputs:
+      scanner_debug:
+        description: "Enable SonarScanner debug (-X)"
+        required: false
+        default: "false"
+      quality_profile:
+        description: "Quality Profile name"
+        required: false
+        default: "Sonar way"
+      quality_profile_language:
+        description: "Quality Profile language"
+        required: false
+        default: "js"
+      quality_gate:
+        description: "Quality Gate name"
+        required: false
+        default: "Sonar way"
+      sonar_token:
+        description: "SonarQube token (preferred)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -23,10 +44,10 @@ jobs:
     services:
       sonarqube:
         image: sonarqube:lts-community
-        ports:
-          - 9000:9000
         env:
           SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    env:
+      SONAR_HOST_URL: "http://sonarqube:9000"
 
     steps:
       - name: Checkout
@@ -38,6 +59,11 @@ jobs:
           path: .tests/api
           project_key: e2e-api
           project_name: E2E API
+          quality_profile: ${{ inputs.quality_profile }}
+          quality_profile_language: ${{ inputs.quality_profile_language }}
+          quality_gate: ${{ inputs.quality_gate }}
+          sonar_token: ${{ inputs.sonar_token }}
+          scanner_debug: ${{ inputs.scanner_debug }}
           skip_pr: true
 
   sonarqube-scan-react:
@@ -48,10 +74,10 @@ jobs:
     services:
       sonarqube:
         image: sonarqube:lts-community
-        ports:
-          - 9000:9000
         env:
           SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    env:
+      SONAR_HOST_URL: "http://sonarqube:9000"
 
     steps:
       - name: Checkout
@@ -63,4 +89,9 @@ jobs:
           path: .tests/react
           project_key: e2e-react
           project_name: E2E React
+          quality_profile: ${{ inputs.quality_profile }}
+          quality_profile_language: ${{ inputs.quality_profile_language }}
+          quality_gate: ${{ inputs.quality_gate }}
+          sonar_token: ${{ inputs.sonar_token }}
+          scanner_debug: ${{ inputs.scanner_debug }}
           skip_pr: true

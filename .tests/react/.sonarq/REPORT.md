@@ -7,10 +7,10 @@
 | **Project** | E2E React |
 | **Project Key** | e2e-react |
 | **Quality Gate** | PASSED (OK) |
-| **Generated** | 2026-02-24T16:18:41Z |
-| **Branch** | local |
-| **Commit** | local |
-| **Workflow Run** | #local (ID: local) |
+| **Generated** | 2026-02-25T16:45:58Z |
+| **Branch** | main |
+| **Commit** | f483331 |
+| **Workflow Run** | #1 (ID: 1) |
 
 ## Quality Gate Status
 
@@ -28,7 +28,7 @@ The Quality Gate status indicates whether the project meets the defined quality 
 | Bugs | 0 | Reliability issues |
 | Vulnerabilities | 0 | Security issues |
 | Security Hotspots | 2 | Security-sensitive code to review |
-| Code Smells | 14 | Maintainability issues |
+| Code Smells | 36 | Maintainability issues |
 | Coverage | 0.0% | Test coverage percentage |
 | Duplications | 0.0% | Duplicated lines percentage |
 
@@ -40,15 +40,17 @@ The Quality Gate status indicates whether the project meets the defined quality 
 | Critical | 1 |
 | Major | 1 |
 | Minor | 1 |
-| **Total** | **14** |
+| **Total** | **36** |
 
 ## Analysis Details
 
 ### Scan Configuration
 
 - **Scan Path:** .tests/react
-- **Source Directory:** src
-- **Exclusions:** node_modules/**, dist/**, build/**, coverage/**, *.spec.ts, *.test.ts
+- **Sources:** .
+- **Inclusions:** **/*.ts,**/*.tsx,**/*.js,**/*.jsx
+- **Exclusions:** .sonarq/**,.scannerwork/**,node_modules/**,dist/**,build/**,coverage/**,**/*.spec.ts,**/*.test.ts
+- **ESLint Report:** .sonarq/eslint-report.json
 
 ### SonarQube Server
 

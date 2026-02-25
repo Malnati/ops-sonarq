@@ -12,12 +12,16 @@ if [ ! -d "$scan_path" ]; then
   echo "ERROR: Directory $scan_path does not exist"
   exit 1
 fi
-if [ ! -d "$scan_path/src" ]; then
-  echo "WARNING: $scan_path/src does not exist, creating placeholder"
-  mkdir -p "$scan_path/src"
-  echo "// placeholder" > "$scan_path/src/placeholder.ts"
-fi
+
 echo "Directory contents:"
 ls -la "$scan_path"
 echo "Source files count:"
-find "$scan_path/src" -type f -name "*.ts" 2>/dev/null | wc -l || echo "0"
+source_count=$(find "$scan_path" \
+  \( -path "$scan_path/node_modules" -o -path "$scan_path/.sonarq" -o -path "$scan_path/.scannerwork" -o -path "$scan_path/dist" -o -path "$scan_path/build" -o -path "$scan_path/coverage" \) -prune -false \
+  -o -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) -print \
+  | wc -l)
+echo "$source_count"
+if [ "$source_count" -eq 0 ]; then
+  echo "ERROR: No source files found under $scan_path"
+  exit 1
+fi

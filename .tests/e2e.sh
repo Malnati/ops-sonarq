@@ -49,6 +49,7 @@ run_scan() {
   local path="$1"
   local key="$2"
   local name="$3"
+  local scanner_debug_flag=""
 
   echo ""
   echo -e "${YELLOW}========================================${NC}"
@@ -56,10 +57,15 @@ run_scan() {
   echo -e "${YELLOW}========================================${NC}"
   echo ""
 
+  if [ "${SCANNER_DEBUG:-false}" = "true" ]; then
+    scanner_debug_flag="--scanner-debug"
+  fi
+
   if bash "$repo_root/assets/run.sh" \
     --path "$path" \
     --project-key "$key" \
-    --project-name "$name"; then
+    --project-name "$name" \
+    $scanner_debug_flag; then
 
     report_dir="$repo_root/$path/.sonarq"
     if [ -f "$report_dir/REPORT.md" ] && [ -f "$report_dir/quality-gate.json" ]; then
@@ -87,6 +93,7 @@ run_scan() {
 
 run_workflow_cli() {
   local workflow_name="Workflow test.yml"
+  local act_dir="/tmp/act-bin"
 
   echo ""
   echo -e "${YELLOW}========================================${NC}"
@@ -94,16 +101,31 @@ run_workflow_cli() {
   echo -e "${YELLOW}========================================${NC}"
   echo ""
 
+  if [ -x "$act_dir/act" ]; then
+    export PATH="$act_dir:$PATH"
+  fi
+
   if ! command -v act &>/dev/null; then
-    echo -e "${RED}[FAIL]${NC} $workflow_name - act not installed"
-    results+=("FAIL|$workflow_name|N/A|N/A|N/A|N/A|N/A")
-    failed=$((failed + 1))
-    return
+    echo "act not installed, attempting install..."
+    act_version="${ACT_VERSION:-latest}"
+    mkdir -p "$act_dir"
+    if curl -fsSL "https://raw.githubusercontent.com/nektos/act/master/install.sh" | bash -s -- -b "$act_dir" "$act_version"; then
+      export PATH="$act_dir:$PATH"
+    fi
+    if ! command -v act &>/dev/null; then
+      echo -e "${RED}[FAIL]${NC} $workflow_name - act not installed"
+      results+=("FAIL|$workflow_name|N/A|N/A|N/A|N/A|N/A")
+      failed=$((failed + 1))
+      return
+    fi
+    act --version || true
   fi
 
   rm -rf "$repo_root/.tests/api/.sonarq" "$repo_root/.tests/react/.sonarq"
 
   if ! act -W "$repo_root/.github/workflows/test.yml" workflow_dispatch \
+    --bind \
+    --env SONAR_HOST_URL=http://localhost:9000 \
     -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest; then
     echo -e "${RED}[FAIL]${NC} $workflow_name - workflow failed"
     results+=("FAIL|$workflow_name|N/A|N/A|N/A|N/A|N/A")

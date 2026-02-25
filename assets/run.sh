@@ -10,6 +10,11 @@ Options:
   --path <path>                 Path to scan (default: api)
   --project-key <key>           Project key (default: project)
   --project-name <name>         Project name (default: Project)
+  --sonar-token <token>         SonarQube token (preferred)
+  --quality-profile <name>      Quality Profile name (default: Sonar way)
+  --quality-profile-language <lang> Quality Profile language (default: ts)
+  --quality-gate <name>         Quality Gate name (default: Sonar way)
+  --scanner-debug               Enable SonarScanner debug (-X)
   --sonar-host-url <url>        SonarQube URL (default: http://localhost:9000)
   --sonar-scanner-version <ver> SonarScanner CLI version (default: 5.0.1.3006)
   --sonar-user <user>           SonarQube user (default: admin)
@@ -25,6 +30,11 @@ SONAR_HOST_URL="http://localhost:9000"
 SONAR_SCANNER_VERSION="6.2.1.4610"
 SONAR_USER="admin"
 SONAR_PASS="admin"
+SONAR_TOKEN=""
+QUALITY_PROFILE="Sonar way"
+QUALITY_PROFILE_LANGUAGE="js"
+QUALITY_GATE="Sonar way"
+SCANNER_DEBUG="false"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -56,6 +66,26 @@ while [ $# -gt 0 ]; do
       SONAR_PASS="$2"
       shift 2
       ;;
+    --sonar-token)
+      SONAR_TOKEN="$2"
+      shift 2
+      ;;
+    --quality-profile)
+      QUALITY_PROFILE="$2"
+      shift 2
+      ;;
+    --quality-profile-language)
+      QUALITY_PROFILE_LANGUAGE="$2"
+      shift 2
+      ;;
+    --quality-gate)
+      QUALITY_GATE="$2"
+      shift 2
+      ;;
+    --scanner-debug)
+      SCANNER_DEBUG="true"
+      shift 1
+      ;;
     -h|--help)
       usage
       exit 0
@@ -75,8 +105,15 @@ export GITHUB_WORKSPACE="$repo_root"
 export INPUT_PATH="$SCAN_PATH"
 export INPUT_PROJECT_KEY="$PROJECT_KEY"
 export INPUT_PROJECT_NAME="$PROJECT_NAME"
+export INPUT_SONAR_TOKEN="$SONAR_TOKEN"
+export INPUT_QUALITY_PROFILE="$QUALITY_PROFILE"
+export INPUT_QUALITY_PROFILE_LANGUAGE="$QUALITY_PROFILE_LANGUAGE"
+export INPUT_QUALITY_GATE="$QUALITY_GATE"
+export INPUT_SCANNER_DEBUG="$SCANNER_DEBUG"
 export SCAN_PATH PROJECT_KEY PROJECT_NAME
 export SONAR_HOST_URL SONAR_SCANNER_VERSION SONAR_USER SONAR_PASS
+export SONAR_TOKEN
+export QUALITY_PROFILE QUALITY_PROFILE_LANGUAGE QUALITY_GATE SCANNER_DEBUG
 
 export GITHUB_ENV
 export GITHUB_OUTPUT

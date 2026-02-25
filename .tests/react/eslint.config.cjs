@@ -5,6 +5,17 @@ const sonarjs = require("eslint-plugin-sonarjs");
 
 /** @type {import("eslint").Linter.FlatConfig} */
 module.exports = [
+  {
+    ignores: [
+      "node_modules/**",
+      ".sonarq/**",
+      ".scannerwork/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      "eslint.config.cjs",
+    ],
+  },
   // Regras base removidas: use apenas plugins e regras customizadas
   {
     files: ["**/*.ts", "**/*.tsx"],

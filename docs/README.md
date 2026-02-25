@@ -40,6 +40,7 @@ Diretorio: `path/.sonarq`
 - `issues.json`
 - `hotspots.json`
 - `analyses.json`
+- `eslint-report.json`
 - `REPORT.md`
 
 ## Exemplo

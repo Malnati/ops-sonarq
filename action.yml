@@ -20,6 +20,26 @@ inputs:
     description: Project name
     required: false
     default: "Nome do Projeto"
+  sonar_token:
+    description: SonarQube token (preferred over user/password)
+    required: false
+    default: ""
+  quality_profile:
+    description: Quality Profile name to associate
+    required: false
+    default: "Sonar way"
+  quality_profile_language:
+    description: Quality Profile language key
+    required: false
+    default: "js"
+  quality_gate:
+    description: Quality Gate name to associate
+    required: false
+    default: "Sonar way"
+  scanner_debug:
+    description: Enable SonarScanner debug (-X)
+    required: false
+    default: "false"
   skip_pr:
     description: Skip commit/PR step
     required: false
@@ -63,6 +83,10 @@ runs:
         env:
           INPUT_PROJECT_KEY: ${{ inputs.project_key }}
           INPUT_PROJECT_NAME: ${{ inputs.project_name }}
+          INPUT_SONAR_TOKEN: ${{ inputs.sonar_token }}
+          INPUT_QUALITY_PROFILE: ${{ inputs.quality_profile }}
+          INPUT_QUALITY_PROFILE_LANGUAGE: ${{ inputs.quality_profile_language }}
+          INPUT_QUALITY_GATE: ${{ inputs.quality_gate }}
         run: bash assets/sonarq-configure-project.sh
 
       - name: Download and Setup Sonar Scanner
@@ -75,6 +99,9 @@ runs:
 
       - name: Run SonarQube Scan
         shell: bash
+        env:
+          INPUT_SONAR_TOKEN: ${{ inputs.sonar_token }}
+          INPUT_SCANNER_DEBUG: ${{ inputs.scanner_debug }}
         run: bash assets/sonarq-run-scan.sh
 
       - name: Wait for Analysis Processing

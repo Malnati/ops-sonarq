@@ -47,8 +47,10 @@ The Quality Gate status indicates whether the project meets the defined quality 
 ### Scan Configuration
 
 - **Scan Path:** ${SCAN_PATH}
-- **Source Directory:** src
-- **Exclusions:** node_modules/**, dist/**, build/**, coverage/**, *.spec.ts, *.test.ts
+- **Sources:** ${SONAR_SOURCES}
+- **Inclusions:** ${SONAR_INCLUSIONS}
+- **Exclusions:** ${SONAR_EXCLUSIONS}
+- **ESLint Report:** ${SONAR_ESLINT_REPORT}
 
 ### SonarQube Server
 

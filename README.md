@@ -15,8 +15,9 @@ Fluxo implementado em `action.yml`:
    - `http://host.docker.internal:9000`
 4. Aguarda o SonarQube ficar `UP`.
 5. Gera `sonar-project.properties` com `envsubst` a partir de `assets/sonar-project.properties.template`.
+6. Associa Quality Profile e Quality Gate via Web API (quando configurado).
 6. Baixa SonarScanner CLI e adiciona ao `PATH`.
-7. Garante existencia de `path/src` (cria placeholder quando ausente).
+7. Executa ESLint e gera `.sonarq/eslint-report.json`.
 8. Executa scan SonarQube com login/senha `admin/admin`.
 9. Aguarda processamento da analise.
 10. Extrai dados via API SonarQube para `path/.sonarq`.
@@ -31,6 +32,11 @@ Fluxo implementado em `action.yml`:
 | `path` | yes | `api` | Path to scan |
 | `project_key` | no | `nome-do-projeto` | Project key |
 | `project_name` | no | `Nome do Projeto` | Project name |
+| `sonar_token` | no | `` | SonarQube token (preferred) |
+| `quality_profile` | no | `Sonar way` | Quality Profile name |
+| `quality_profile_language` | no | `js` | Quality Profile language |
+| `quality_gate` | no | `Sonar way` | Quality Gate name |
+| `scanner_debug` | no | `false` | Enable SonarScanner debug (-X) |
 | `skip_pr` | no | `false` | Skip commit/PR step |
 
 ## Outputs declarados
@@ -53,6 +59,7 @@ No diretorio `path/.sonarq`:
 - `issues.json`
 - `hotspots.json`
 - `analyses.json`
+- `eslint-report.json`
 - `REPORT.md`
 
 ## Exemplo de uso

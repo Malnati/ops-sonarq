@@ -1,7 +1,9 @@
 sonar.projectKey=${PROJECT_KEY}
 sonar.projectName=${PROJECT_NAME}
 sonar.projectVersion=1.0
-sonar.sources=src
+sonar.sources=.
+sonar.inclusions=**/*.ts,**/*.tsx,**/*.js,**/*.jsx
 sonar.sourceEncoding=UTF-8
-sonar.exclusions=node_modules/**,dist/**,build/**,coverage/**,*.spec.ts,*.test.ts
+sonar.exclusions=.sonarq/**,.scannerwork/**,node_modules/**,dist/**,build/**,coverage/**,**/*.spec.ts,**/*.test.ts
+sonar.eslint.reportPaths=.sonarq/eslint-report.json
 sonar.host.url=${SONAR_HOST_URL}
