@@ -7,9 +7,9 @@
 | **Project** | E2E API |
 | **Project Key** | e2e-api |
 | **Quality Gate** | PASSED (OK) |
-| **Generated** | 2026-02-25T16:45:58Z |
+| **Generated** | 2026-02-25T17:07:25Z |
 | **Branch** | main |
-| **Commit** | f483331 |
+| **Commit** | 4e805c6 |
 | **Workflow Run** | #1 (ID: 1) |
 
 ## Quality Gate Status
